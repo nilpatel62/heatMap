@@ -28,24 +28,33 @@ if 'DYNO' in os.environ:
 mapbox_access_token = 'pk.eyJ1IjoiYWxpc2hvYmVpcmkiLCJhIjoiY2ozYnM3YTUxMDAxeDMzcGNjbmZyMmplZiJ9.ZjmQ0C2MNs1AzEBC_Syadg'
 
 
-def getzone(value):
+def getzonel(value):
+
     getzone = db.areaZones.find({'city': value})
     title_zone = []
-    latlong = []
+
     for i in getzone:
+        longtitude = []
+        latitude = []
         for j in i['polygons']['coordinates']:
-            title_zone.append({
-                "title": i["title"],
-                "latlong": j[0]
-            })
+            for k in j:
+                longtitude.append(k[0])
+                latitude.append(k[1])
+        title_zone.append(
+            {
+                'title': i['title'],
+                'lat': sum(latitude)/len(latitude),
+                'long': sum(longtitude)/len(longtitude)
+            }
+        )
     zone = []
     for i in title_zone:
         zone.append(
             dict(
                 args=[{
-                    'mapbox.zoom': 14,
-                    'mapbox.center.lon': i['latlong'][0],
-                    'mapbox.center.lat': i['latlong'][1],
+                    'mapbox.zoom': 13,
+                    'mapbox.center.lon': i['long'],
+                    'mapbox.center.lat': i['lat'],
                     'mapbox.bearing': 0,
                     'mapbox.style': 'dark'
                 }],
@@ -54,6 +63,49 @@ def getzone(value):
             )
         )
     return zone
+
+
+def getzonlat(value):
+    getzonelat = db.areaZones.find({'city': value})
+    zone = []
+    for i in getzonelat:
+        for j in i['polygons']['coordinates']:
+            zone.append({
+                "latlong": j[0]
+            })
+
+    latitude = []
+    for i in zone:
+        latitude.append(i['latlong'][0])
+    return latitude
+
+
+def getzonlong(value):
+    getzonelat = db.areaZones.find({'city': value})
+    zone = []
+    for i in getzonelat:
+        for j in i['polygons']['coordinates']:
+            zone.append({
+                "latlong": j[0]
+            })
+    longtitude = []
+    for i in zone:
+        longtitude.append(i['latlong'][1])
+    return longtitude
+
+
+def getzontitle(value):
+    getzonelat = db.areaZones.find({'city': value})
+    zone = []
+    for i in getzonelat:
+        # for j in i['polygons']['coordinates']:
+        zone.append({
+            "title": i["title"]
+        })
+    title = []
+    for i in zone:
+        title.append(i["title"])
+    return title
 
 
 def getlet(value):
@@ -86,7 +138,6 @@ def getlong(value):
             for k in j:
                 longtotude.append(k[1])
     return longtotude[1]
-    # print(coordinates)
 
 
 def getcity():
@@ -114,27 +165,19 @@ def initialize():
 
     created_date = []
     for n in date:
-        # print(type(str(n['created'])))
         created_date.append(str(n['created']))
 
-    # created = created_date[:5]
-    # created = ['2014-04-24 08:53:28', '2014-04-24 09:09:54', '2014-04-24 09:12:39']
     location = []
     for j in pickup:
         location.append(j['location'])
 
-    # longitude = [77.58941017091274, 77.58941318839788, 77.5896048]
     longitude = []
     for k in location:
-        # print(type(k['longitude']))
         longitude.append(k['longitude'])
-    # longitude = long[:5]
 
     latitude = []
     for l in location:
         latitude.append(l['latitude'])
-    # latitude = lat[]
-    # latitude = [13.02852977955524, 13.0286117675436, 13.0284621]
     total = {
         "Date/Time": created_date,
         "Lat": latitude,
@@ -148,7 +191,6 @@ def initialize():
     df.index = df["Date/Time"]
     df.drop("Date/Time", 1, inplace=True)
     # df.drop("Base", 1, inplace=True)
-    print(len(df))
     totalList = []
     for month in df.groupby(df.index.month):
         dailyList = []
@@ -167,13 +209,35 @@ app.layout = html.Div([
             html.P(id='total-rides', className="totalRides"),
             html.P(id='total-rides-selection', className="totalRideSelection"),
             html.P(id='date-value', className="dateValue"),
+
             dcc.Dropdown(
                 id='my-dropdown',
                 options=getcity(),
                 value="Bengaluru",
-                placeholder="Please choose a month",
+                placeholder="Please choose a City",
                 className="month-picker"
             ),
+            # dcc.Dropdown(
+            #     id='my-month',
+            #     options=[
+            #         {'label': 'January', 'value': 'jan'},
+            #         {'label': 'February', 'value': 'fbr'},
+            #         {'label': 'March', 'value': 'mar'},
+            #         {'label': 'April', 'value': 'Apr'},
+            #         {'label': 'May', 'value': 'My'},
+            #         {'label': 'June', 'value': 'June'},
+            #         {'label': 'July', 'value': 'July'},
+            #         {'label': 'August', 'value': 'Aug'},
+            #         {'label': 'September', 'value': 'Sept'},
+            #         {'label': 'October', 'value': 'Oct'},
+            #         {'label': 'November', 'value': 'Nov'},
+            #         {'label': 'December', 'value': 'Dec'}
+            #     ],
+            #     value="Apr",
+            #     placeholder="Please choose a Month",
+            #     className="month-picker"
+            # ),
+
             html.Div([
                 html.Div([
                     html.H2("Dash - Uber4All", style={'font-family': 'Dosis'}),
@@ -223,8 +287,7 @@ app.layout = html.Div([
             step=1,
             value=1
         ),
-        # dcc.Markdown("Source: [FiveThirtyEight](https://github.com/fivethirtyeight/uber-tlc-foil-response/tree/master/uber-trip-data)",
-        #              className="source"),
+
         dcc.Checklist(
             id="mapControls",
             options=[
@@ -240,7 +303,7 @@ app.layout = html.Div([
 
 def getValue(value):
     val = {
-        value: 6,
+        value: 30,
         # 'Apr': 30,
         # 'May': 31,
         # 'June': 30,
@@ -249,6 +312,23 @@ def getValue(value):
         # 'Sept': 30
     }[value]
     return val
+
+# def getValueOfMonth(value):
+#     val = {
+#         'jan': 31,
+#         'fbr': 28,
+#         'mar': 31,
+#         'Apr': 30,
+#         'May': 31,
+#         'June': 30,
+#         'July': 31,
+#         'Aug': 31,
+#         'Sept': 30,
+#         'Oct': 31,
+#         'Nov': 30,
+#         'Dec': 31
+#     }[value]
+#     return val
 
 
 def getIndex(value):
@@ -266,7 +346,33 @@ def getIndex(value):
     return val
 
 
+# def getIndexOfMonth(value):
+#     if (value == None):
+#         return 0
+#     val = {
+#         'jan': 0,
+#         'fbr': 1,
+#         'mar': 2,
+#         'Apr': 3,
+#         'May': 4,
+#         'June': 5,
+#         'July': 6,
+#         'Aug': 7,
+#         'Sept': 8,
+#         'Oct': 9,
+#         'Nov': 10,
+#         'Dec': 11
+#     }[value]
+#     return val
+
+
 def getClickIndex(value):
+    if (value == None):
+        return 0
+    return value['points'][0]['x']
+
+
+def getClickIndexOfMonth(value):
     if (value == None):
         return 0
     return value['points'][0]['x']
@@ -278,16 +384,35 @@ def update_slider_ticks(value):
     marks = {}
     for i in range(1, getValue(value) + 1, 1):
         if (i is 1 or i is getValue(value)):
-            marks.update({i: '{} {}'.format(value, i)})
+            marks.update({i: '{}'.format(i)})
         else:
             marks.update({i: '{}'.format(i)})
-    return marks
+    return marks\
+
+
+
+# @app.callback(Output("my-slider", "mark"),
+#               [Input("my-month", "value")])
+# def update_slider_sticks(value):
+#     mark = {}
+#     for i in range(1, getValueOfMonth(value) + 1, 1):
+#         if (i is 1 or i is getValueOfMonth(value)):
+#             mark.update({i: '{}'.format(i)})
+#         else:
+#             mark.update({i: '{}'.format(i)})
+#     return mark\
 
 
 @app.callback(Output("my-slider", "max"),
               [Input("my-dropdown", "value")])
 def update_slider_max(value):
     return getValue(value)
+
+
+# @app.callback(Output("my-slider", "max"),
+#               )
+# def update_sliderMonth_max(value):
+#     return getValueOfMonth(value)
 
 
 @app.callback(Output("bar-selector", "value"),
@@ -304,14 +429,26 @@ def update_bar_selector(value):
 @app.callback(Output("total-rides", "children"),
               [Input("my-dropdown", "value"), Input('my-slider', 'value')])
 def update_total_rides(value, slider_value):
+    print('hello---------', slider_value)
+    print(value)
+    print(len(totalList[getIndex(value)]))
+    print([slider_value - 1])
     return ("Total # of rides: {:,d}"
             .format(len(totalList[getIndex(value)][slider_value - 1])))
 
 
+# @app.callback(Output("total-rides", "children"),
+#               [Input("my-month", "value"), Input('my-slider', 'value')])
+# def update_total_ofmonth_rides(value, slider_value):
+#     return ("Total # of rides: {:,d}"
+#             .format(len(totalList[getIndexOfMonth(value)][slider_value - 1])))
+
+
 @app.callback(Output("total-rides-selection", "children"),
-              [Input("my-dropdown", "value"), Input('my-slider', 'value'),
+              [Input("my-dropdown", "value"),  Input('my-slider', 'value'),
                Input('bar-selector', 'value')])
 def update_total_rides_selection(value, slider_value, selection):
+    print(slider_value)
     if (selection is None or len(selection) is 0):
         return ""
     totalInSelction = 0
@@ -321,7 +458,7 @@ def update_total_rides_selection(value, slider_value, selection):
                                [totalList[getIndex(value)]
                                 [slider_value - 1].index.hour == int(x)])
     return ("Total rides in selection: {:,d}"
-            .format(totalInSelction))
+            .format(totalInSelction))\
 
 
 @app.callback(Output("date-value", "children"),
@@ -329,8 +466,10 @@ def update_total_rides_selection(value, slider_value, selection):
                Input("bar-selector", "value")])
 def update_date(value, slider_value, selection):
     holder = []
+    print(slider_value)
     if (value is None or selection is None or len(selection) is 24
             or len(selection) is 0):
+
         return (value, " ", slider_value, " - showing: All")
 
     for x in selection:
@@ -374,8 +513,6 @@ def get_selection(value, slider_value, selection):
                 "#4CDC20", "#34D822", "#24D249", "#25D042", "#26CC58", "#28C86D",
                 "#29C481", "#2AC093", "#2BBCA4", "#2BB5B8", "#2C99B4", "#2D7EB0",
                 "#2D65AC", "#2E4EA4", "#2E38A4", "#3B2FA0", "#4E2F9C", "#603099"]
-    print('Hello', value)
-    print('Morning', slider_value)
     if (selection is not None):
         for x in selection:
             xSelected.append(int(x))
@@ -390,10 +527,33 @@ def get_selection(value, slider_value, selection):
             np.array(colorVal)]
 
 
+# def get_selection_ofmonth(value, slider_value, selection):
+#     xVal = []
+#     yVal = []
+#     xSelected = []
+#     colorVal = ["#F4EC15", "#DAF017", "#BBEC19", "#9DE81B", "#80E41D", "#66E01F",
+#                 "#4CDC20", "#34D822", "#24D249", "#25D042", "#26CC58", "#28C86D",
+#                 "#29C481", "#2AC093", "#2BBCA4", "#2BB5B8", "#2C99B4", "#2D7EB0",
+#                 "#2D65AC", "#2E4EA4", "#2E38A4", "#3B2FA0", "#4E2F9C", "#603099"]
+#     if (selection is not None):
+#         for x in selection:
+#             xSelected.append(int(x))
+#     for i in range(0, 24, 1):
+#         if i in xSelected and len(xSelected) < 24:
+#             colorVal[i] = ('#FFFFFF')
+#         xVal.append(i)
+#         yVal.append(len(totalList[getIndexOfMonth(value)][slider_value - 1]
+#                         [totalList[getIndexOfMonth(value)][slider_value - 1].index.hour == i]))
+#
+#     return [np.array(xVal), np.array(yVal), np.array(xSelected),
+#             np.array(colorVal)]
+
+
 @app.callback(Output("histogram", "figure"),
               [Input("my-dropdown", "value"), Input('my-slider', 'value'),
                Input("bar-selector", "value")])
 def update_histogram(value, slider_value, selection):
+    print(slider_value)
     [xVal, yVal, xSelected, colorVal] = get_selection(value, slider_value,
                                                       selection)
 
@@ -461,6 +621,7 @@ def update_histogram(value, slider_value, selection):
 
 
 def get_lat_lon_color(selectedData, value, slider_value):
+    print(slider_value)
     listStr = "totalList[getIndex(value)][slider_value-1]"
     if (selectedData is None or len(selectedData) is 0):
         return listStr
@@ -486,26 +647,38 @@ def get_lat_lon_color(selectedData, value, slider_value):
               [State('map-graph', 'relayoutData'),
                State('mapControls', 'values')])
 def update_graph(value, slider_value, selectedData, prevLayout, mapControls):
-    zoom = 9.0
-    print(value)
-
+    zoom = 11.0
+    print(slider_value)
     latInitial = getlong(value)
     lonInitial = getlet(value)
     bearing = 0
-    print(latInitial)
-    print(lonInitial)
 
     listStr = get_lat_lon_color(selectedData, value, slider_value)
-
+    b = []
     if (prevLayout is not None and mapControls is not None and
             'lock' in mapControls):
         zoom = float(prevLayout['mapbox']['zoom'])
         latInitial = float(prevLayout['mapbox']['center']['lat'])
         lonInitial = float(prevLayout['mapbox']['center']['lon'])
         bearing = float(prevLayout['mapbox']['bearing'])
-    return go.Figure(
-        data=Data([
-            Scattermapbox(
+    getzone = db.areaZones.find({'city': value})
+    title_zone = []
+
+    for i in getzone:
+        longtitude = []
+        latitude = []
+        for j in i['polygons']['coordinates']:
+            for k in j:
+                longtitude.append(k[0])
+                latitude.append(k[1])
+        title_zone.append(
+            {
+                'title': i['title'],
+                'lat': latitude,
+                'long': longtitude
+            }
+        )
+    b.append(Scattermapbox(
                 lat=eval(listStr)['Lat'],
                 lon=eval(listStr)['Lon'],
                 mode='markers',
@@ -539,8 +712,21 @@ def update_graph(value, slider_value, selectedData, prevLayout, mapControls):
                         titleside='left'
                     )
                 ),
-            ),
-        ]),
+            ))
+    for i in title_zone:
+            b.append(
+                Scattermapbox(
+                    lat=i['lat'],
+                    lon=i['long'],
+                    mode='lines',
+                    hoverinfo="text",
+                    text=i['title'],
+                )
+            )
+
+    return go.Figure(
+        data=Data(b
+        ),
         layout=Layout(
             autosize=True,
             height=750,
@@ -559,19 +745,19 @@ def update_graph(value, slider_value, selectedData, prevLayout, mapControls):
             updatemenus=[
 
                 dict(
-                    buttons=(getzone(value)),
-                    direction="down",
+                    buttons=(getzonel(value)),
+                    direction="top",
                     pad={'r': 0, 't': 0, 'b': 0, 'l': 0},
                     showactive=False,
-                    bgcolor="rgb(50, 49, 48, 0)",
-                    type='buttons',
-                    yanchor='bottom',
+                    bgcolor="rgb(255, 255, 255)",
+                    type='scrollbar',
+                    yanchor='top',
                     xanchor='left',
                     font=dict(
-                        color="#FFFFFF"
+                        color="#000000"
                     ),
                     x=0,
-                    y=0.05
+                    y=0.92
                 )
             ]
         )
@@ -593,7 +779,7 @@ def defineTotalList():
     global totalList
     totalList = initialize()
     city = getcity()
-    lat = getzone('Bengaluru')
+    # lat = getzonel('Bengaluru')
 
 
 if __name__ == '__main__':
